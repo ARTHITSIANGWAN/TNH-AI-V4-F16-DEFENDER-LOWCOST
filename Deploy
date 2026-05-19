@@ -1,4 +1,0 @@
-// ใน func main() ตรงส่วนที่ 4. ตั้งค่าด่านหน้า
-http.HandleFunc("/webhook/line", empire.PhraiThongShield) // เปลี่ยนจาก /webhook เป็นทางเฉพาะ
-http.HandleFunc("/webhook/facebook", empire.MetaShield)   // เพิ่มประตูเมต้า
-http.HandleFunc("/webhook/telegram", empire.OptimusShield) // เพิ่มประตูเทเลแกรม
