@@ -73,7 +73,7 @@ func sendToDiscord(message string, agentName string) {
 		Avatar:   "https://cdn-icons-png.flaticon.com/512/4712/4712109.png",
 	}
 	jsonData, _ := json.Marshal(payload)
-	http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	_, _ = http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
 }
 
 // --- ⚡ หัวใจ Gemini 3: แกะเจ้าตาก ---
@@ -82,7 +82,6 @@ func askGemini(prompt string) string {
 	if apiKey == "" {
 		return "⚠️ กุญแจหาย! กรุณาเช็ก Secret Manager"
 	}
-	// ใช้โมเดล Flash ตัวแรง
 	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey
 
 	payload := GeminiRequest{}
@@ -104,7 +103,7 @@ func askGemini(prompt string) string {
 
 	body, _ := io.ReadAll(resp.Body)
 	var geminiResp GeminiResponse
-	json.Unmarshal(body, &geminiResp)
+	_ = json.Unmarshal(body, &geminiResp)
 
 	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
 		return geminiResp.Candidates[0].Content.Parts[0].Text
@@ -113,9 +112,10 @@ func askGemini(prompt string) string {
 }
 
 func main() {
-	log.Println("🐅 [ทิศเหนือ ฮับ]: IGNITE - Full Power Online...")
-	port := os.Getenv("PORT")
-	if port == "" { port = "8080" }
+	log.Println("🐅 [ทิศเหนือ ฮับ V4]: IGNITE - Full Power Online...")
+	
+	// 🔒 บังคับสับสวิตช์ล็อกเลนเข้าพอร์ตเดี่ยว 2026 ของมหาจักรวรรดิเพื่อความกริบ
+	port := "2026"
 	ctx := context.Background()
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
@@ -123,27 +123,31 @@ func main() {
 
 	hub := &ThitNueaHub{
 		db:        dbClient,
-		missionCh: make(chan Mission, 10000), // 🔥 ขยายคิวเป็น 10,000 รับงานหมื่นครั้ง
+		missionCh: make(chan Mission, 10000), // 🔥 คิว 10,000 รองรับงานหนัก
 		secret:    os.Getenv("LINE_CHANNEL_SECRET"),
 	}
 
 	lineToken := os.Getenv("LINE_CHANNEL_ACCESS_TOKEN")
 	hub.bot, _ = linebot.New(hub.secret, lineToken)
 
-	sendToDiscord("🚀 **[SYSTEM REIGNITE]** F-16 V.2 พร้อมถลุงงบ 9,000 แล้วเจ้านาย!", "🐅 ทิศเหนือ ฮับ (Core)")
+	sendToDiscord("🚀 **[SYSTEM REIGNITE]** F-16 V4 F-16 พร้อมถลุงงบระบบปิดแล้วเจ้านาย!", "🐅 ทิศเหนือ ฮับ (Core V4)")
 
-	// ปล่อยคนงาน ไอ้จอร์จ 15 คน (เบิ้ลให้ไวขึ้น)
+	// ปล่อยคนงาน ไอ้จอร์จ 15 คน (Zero-Garbage Worker Pool)
 	for i := 1; i <= 15; i++ {
 		hub.wg.Add(1)
 		go hub.GeorgeWorker(ctx, i)
 	}
 
+	// ล็อกเส้นทางเชื่อมต่อระบบ (Endpoints)
 	http.HandleFunc("/webhook/line", hub.PhraiThongLine)
 	http.HandleFunc("/api/surgery", hub.NamIngSurgeryHandler)
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "✅ F-16: Active & Heavy Loaded")
+	http.HandleFunc("/api/v4/status", hub.V4LiveStatusHandler) // ท่อสเตตัสพ่นไฟออกหน้าบ้าน V3
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, "<h1>✅ F-16 DEFENDER V4: Active & Heavy Loaded over Port 2026</h1>")
 	})
 
+	fmt.Printf("👑 THITNUEA EMPIRE V4 | 🛩️ F-16 ONLINE | Sovereign Port: %s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
@@ -160,39 +164,5 @@ func (h *ThitNueaHub) PhraiThongLine(w http.ResponseWriter, r *http.Request) {
 	events, _ := h.bot.ParseRequest(r)
 	for _, event := range events {
 		if event.Type == linebot.EventTypeMessage {
-			if msg, ok := event.Message.(*linebot.TextMessage); ok {
-				h.missionCh <- Mission{
-					Platform: "LINE", ReplyToken: event.ReplyToken,
-					Text: msg.Text, UserID: event.Source.UserID, Timestamp: time.Now(),
-				}
-			}
-		}
-	}
-	w.WriteHeader(200)
-}
-
-func (h *ThitNueaHub) NamIngSurgeryHandler(w http.ResponseWriter, r *http.Request) {
-	sendToDiscord("🎨 **[น้ำอิง]** กำลังผ่าตัดระบบให้สดใสค่ะ!", "🧑‍🎨 น้ำอิง")
-	fmt.Fprint(w, "น้ำอิง: ผ่าตัดเรียบร้อย!")
-}
-
-func (h *ThitNueaHub) GeorgeWorker(ctx context.Context, id int) {
-	defer h.wg.Done()
-	for m := range h.missionCh {
-		// 🚀 เบิ้ลพลัง Gemini 3 Flash
-		result := askGemini(m.Text)
-
-		// รายงาน Discord Real-time
-		report := fmt.Sprintf("📡 **[ไอ้จอร์จ-%d]**\n👤 User: `%s`\n💬 แกะได้: %s", id, m.UserID, result)
-		sendToDiscord(report, "🕵️ แก้วตา")
-
-		// ลงถัง Firestore (Disk 100GB ของพี่)
-		if h.db != nil {
-			h.db.Collection("missions").Add(ctx, map[string]interface{}{
-				"user_id": m.UserID, "text": m.Text, "result": result,
-				"platform": m.Platform, "timestamp": m.Timestamp,
-			})
-		}
-		h.bot.ReplyMessage(m.ReplyToken, linebot.NewTextMessage(result)).Do()
-	}
-}
+			if msg, ok := event.Message
+			
