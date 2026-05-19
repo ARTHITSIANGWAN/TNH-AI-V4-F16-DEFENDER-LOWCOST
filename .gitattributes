@@ -1,13 +1,29 @@
-# บอก GitHub ว่าไม่ต้องเอา Notebook มานับเป็นภาษาหลัก
+# ====================================================================
+# 👑 THITNUEA EMPIRE LINGUIST CLOAKING SHIELD (.gitattributes)
+# 🛡️ Phase 1 (Syntax Shield): สั่งปิดตาระบบตรวจนับภาษาขยะหน้าบ้าน 100%
+# ====================================================================
+
+# 1. บล็อกสถิติไฟล์ Python Notebook (*.ipynb) ไม่ให้มานับรบกวนน่านฟ้า
 *.ipynb linguist-vendored
 *.ipynb linguist-detectable=false
 
-# บล็อกโฟลเดอร์ notebooks และไฟล์ ipynb
+# 2. ล็อกเป้ากวาดล้างทั้งโฟลเดอร์ notebooks และไฟล์ขยะจำพวกเดฟค้างระบบ
 notebooks/** linguist-vendored
-*.ipynb linguist-vendored
-*.ipynb linguist-detectable=false
+notebooks/** linguist-detectable=false
 
-# บล็อกไฟล์ HTML/CSS/JS (ถ้าอยากให้ Go เด่น 100%)
+# 3. สั่งบล็อกไฟล์เว็บหน้าบ้าน (HTML/CSS/JS) ทั้งหมด ไม่ให้ GitHub ดึงคะแนนหลักเพี้ยน
 *.html linguist-detectable=false
 *.css linguist-detectable=false
 *.js linguist-detectable=false
+*.jsx linguist-detectable=false
+*.ts linguist-detectable=false
+*.tsx linguist-detectable=false
+*.json linguist-detectable=false
+*.jsonc linguist-detectable=false
+
+# 4. บังคับล็อกสัญชาติไฟล์บิวด์ของระบบให้สยบแทบเท้า Pure Go Engine
+*.go linguist-detectable=true
+
+# ====================================================================
+# 🌟 Status: LINGUIST SHIELD INSTALLED | GO ENGINE 100% GUARANTEED 🚀
+# ====================================================================
