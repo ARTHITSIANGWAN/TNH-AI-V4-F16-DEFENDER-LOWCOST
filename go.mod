@@ -1,6 +1,8 @@
-module github.com/thitnueahub/a2a-f-16-defender-v2
+module github.com/ARTHITSIANGWAN/TNH-AI-V4-F16-DEFENDER-LOWCOST
 
-go 1.21
+go 1.22
 
-// ไม่ต้องมี require เลยถ้าเจ้านายใช้แค่ Standard Library
-// ระบบจะคลีนที่สุด Compile ไวที่สุดบนมือถือครับ
+require (
+	cloud.google.com/go/firestore v1.15.0
+	github.com/line/line-bot-sdk-go/v7 v7.21.0
+)
