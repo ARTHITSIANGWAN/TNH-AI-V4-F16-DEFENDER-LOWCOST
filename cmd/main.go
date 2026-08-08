@@ -3,166 +3,106 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
-	"strings"
-	"sync"
+	"os/signal"
+	"syscall"
 	"time"
-
-	"cloud.google.com/go/firestore"
-	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
-// --- 💎 โครงสร้าง Gemini 3 Flash ---
-type GeminiRequest struct {
-	Contents []struct {
-		Parts []struct {
-			Text string `json:"text"`
-		} `json:"parts"`
-	} `json:"contents"`
+type AIDispatch struct {
+	Sender    string                 `json:"sender"`
+	Receiver  string                 `json:"receiver"`
+	Action    string                 `json:"action"`
+	Payload   map[string]interface{} `json:"payload"`
+	Timestamp string                 `json:"timestamp"`
 }
 
-type GeminiResponse struct {
-	Candidates []struct {
-		Content struct {
-			Parts []struct {
-				Text string `json:"text"`
-			} `json:"parts"`
-		} `json:"content"`
-	} `json:"candidates"`
-}
-
-type Mission struct {
-	Platform   string
-	ReplyToken string
-	Text       string
-	UserID     string
-	Timestamp  time.Time
-}
-
-type ThitNueaHub struct {
-	bot       *linebot.Client
-	db        *firestore.Client
-	missionCh chan Mission
-	secret    string
-	wg        sync.WaitGroup
-}
-
-type DiscordPayload struct {
-	Content  string `json:"content"`
-	Username string `json:"username,omitempty"`
-	Avatar   string `json:"avatar_url,omitempty"`
-}
-
-// --- 🚀 ยิงรายงานเข้าห้องบัญชาการ Discord ---
-func sendToDiscord(message string, agentName string) {
-	webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
-	if webhookURL == "" {
-		return
+func sendTaskToPythonAgent(ctx context.Context, targetURL string, action string, payload map[string]interface{}) error {
+	msg := AIDispatch{
+		Sender:    "ThitNuea-Core-Go",
+		Receiver:  "Kaewta-AI-Python",
+		Action:    action,
+		Payload:   payload,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
-	payload := DiscordPayload{
-		Content:  message,
-		Username: agentName,
-		Avatar:   "https://cdn-icons-png.flaticon.com/512/4712/4712109.png",
-	}
-	jsonData, _ := json.Marshal(payload)
-	_, _ = http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-}
 
-// --- ⚡ หัวใจ Gemini 3: แกะเจ้าตาก ---
-func askGemini(prompt string) string {
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		return "⚠️ กุญแจหาย! กรุณาเช็ก Secret Manager"
-	}
-	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey
-
-	payload := GeminiRequest{}
-	payload.Contents = append(payload.Contents, struct {
-		Parts []struct {
-			Text string `json:"text"`
-		} `json:"parts"`
-	}{})
-	payload.Contents[0].Parts = append(payload.Contents[0].Parts, struct {
-		Text string `json:"text"`
-	}{Text: "จงแกะเจ้าตากจากข้อความนี้: " + prompt})
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	jsonData, err := json.Marshal(msg)
 	if err != nil {
-		return "❌ เชื่อมต่อ Gemini พลาด"
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("network error: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
-	var geminiResp GeminiResponse
-	_ = json.Unmarshal(body, &geminiResp)
-
-	if len(geminiResp.Candidates) > 0 && len(geminiResp.Candidates[0].Content.Parts) > 0 {
-		return geminiResp.Candidates[0].Content.Parts[0].Text
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("agent returned status: %d", resp.StatusCode)
 	}
-	return "💎 แก้วตา: กำลังประมวลผลแรงเกินไป หรือ API Key มีปัญหาค่ะ"
+
+	slog.Info("Command executed successfully", "action", action, "status", resp.Status)
+	return nil
 }
 
 func main() {
-	log.Println("🐅 [ทิศเหนือ ฮับ V4]: IGNITE - Full Power Online...")
-	
-	// 🔒 บังคับสับสวิตช์ล็อกเลนเข้าพอร์ตเดี่ยว 2026 ของมหาจักรวรรดิเพื่อความกริบ
-	port := "2026"
-	ctx := context.Background()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	dbClient, _ := firestore.NewClient(ctx, projectID)
+	slog.Info("🐅 [ThitNuea Core]: Starting Sovereign Engine on Port 2026...")
 
-	hub := &ThitNueaHub{
-		db:        dbClient,
-		missionCh: make(chan Mission, 10000), // 🔥 คิว 10,000 รองรับงานหนัก
-		secret:    os.Getenv("LINE_CHANNEL_SECRET"),
-	}
-
-	lineToken := os.Getenv("LINE_CHANNEL_ACCESS_TOKEN")
-	hub.bot, _ = linebot.New(hub.secret, lineToken)
-
-	sendToDiscord("🚀 **[SYSTEM REIGNITE]** F-16 V4 F-16 พร้อมถลุงงบระบบปิดแล้วเจ้านาย!", "🐅 ทิศเหนือ ฮับ (Core V4)")
-
-	// ปล่อยคนงาน ไอ้จอร์จ 15 คน (Zero-Garbage Worker Pool)
-	for i := 1; i <= 15; i++ {
-		hub.wg.Add(1)
-		go hub.GeorgeWorker(ctx, i)
-	}
-
-	// ล็อกเส้นทางเชื่อมต่อระบบ (Endpoints)
-	http.HandleFunc("/webhook/line", hub.PhraiThongLine)
-	http.HandleFunc("/api/surgery", hub.NamIngSurgeryHandler)
-	http.HandleFunc("/api/v4/status", hub.V4LiveStatusHandler) // ท่อสเตตัสพ่นไฟออกหน้าบ้าน V3
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, "<h1>✅ F-16 DEFENDER V4: Active & Heavy Loaded over Port 2026</h1>")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/dispatch", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status": "Accepted",
+			"engine": "ThitNuea-Core-Go",
+		})
 	})
 
-	fmt.Printf("👑 THITNUEA EMPIRE V4 | 🛩️ F-16 ONLINE | Sovereign Port: %s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	server := &http.Server{
+		Addr:         ":2026",
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Server error", "error", err)
+		}
+	}()
+
+	slog.Info("🌐 Server Listening on http://127.0.0.1:2026")
+
+	// ทดสอบส่งคำสั่งไปยัง Python Agent (Port 5000)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	taskData := map[string]interface{}{
+		"project_name": "F-16 DEFENDER V.2",
+		"status":       "Testing Zero-Garbage Matrix",
+	}
+
+	_ = sendTaskToPythonAgent(ctx, "http://127.0.0.1:5000/process", "ANALYZE_PROBABILITY", taskData)
+
+	// Graceful Shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("🛑 Shutting down server gracefully...")
 }
 
-func (h *ThitNueaHub) PhraiThongLine(w http.ResponseWriter, r *http.Request) {
-	body, _ := io.ReadAll(r.Body)
-	hash := hmac.New(sha256.New, []byte(h.secret))
-	hash.Write(body)
-	sig := r.Header.Get("X-Line-Signature")
-	if base64.StdEncoding.EncodeToString(hash.Sum(nil)) != sig {
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
-	r.Body = io.NopCloser(strings.NewReader(string(body)))
-	events, _ := h.bot.ParseRequest(r)
-	for _, event := range events {
-		if event.Type == linebot.EventTypeMessage {
-			if msg, ok := event.Message
-			
