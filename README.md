@@ -16,19 +16,6 @@ Welcome to the Sovereign Logic | Mastering the Go Engine ⚡ | 100% Pure Go Logi
 
 ---
 
-## 💎 สนับสนุนเครื่องยนต์ Go และการวิจัย (Fuel the Fleet)
-
-"6-7 เดือนที่ผ่านมา เราทุ่มเททั้งเลือด หยาดเหงื่อ และคอมพิวเตอร์ที่สังเวยไป 1 เครื่อง เพื่อสร้างรากฐานนี้"
-
-หากคุณเห็นคุณค่าในสัจจะแห่งความทนทาน และต้องการเป็นส่วนหนึ่งของการสร้างเทคโนโลยีไร้กระถาง ร่วมสนับสนุนน้ำมันกองทัพและ V8 Trinity Series ของเราได้ที่นี่:
-
-| ☕ Support via TrueMoney | 💳 Support via PromtPay |
-| :---: | :---: |
-| <img src="https://raw.githubusercontent.com/ARTHITSIANGWAN/ARTHITSIANGWAN/main/mitb27n5.png" width="250px" alt="TrueMoney Support QR"> | <img src="https://raw.githubusercontent.com/ARTHITSIANGWAN/ARTHITSIANGWAN/main/0826978411.png" width="250px" alt="PromtPay Support QR"> |
-| **MITB27N5** | **0826978411** |
-
----
-
 ## 🚀 ขุนพลหลัก (The specialized Units)
 
 - **👑 ทิศเหนือ (Commander):** Emperor Protocol & วิสัยทัศน์หลัก
